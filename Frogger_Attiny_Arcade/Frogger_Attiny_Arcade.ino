@@ -175,7 +175,7 @@ static const byte titleBmp[] PROGMEM = {
 // Interrupt handlers
 ISR(PCINT0_vect){ // PB0 pin button interrupt           
   if (clickLock == 0) {
-    moveLeft = 1;
+    moveForward = 1;
     clickLock = 1;
     clickBase = millis();
   }
@@ -183,7 +183,12 @@ ISR(PCINT0_vect){ // PB0 pin button interrupt
 
 void playerIncFrogger(){ // PB2 pin button interrupt
   if (clickLock == 0) {
-    moveRight = 1;
+    int ic = analogRead(1);
+    if (ic > 800 && ic < 855) {
+      moveLeft = 1;
+    } else if (ic > 855 && ic < 970) {
+      moveRight = 1;
+    }
     clickLock = 1;
     clickBase = millis();
   }
@@ -492,7 +497,7 @@ void playFrogger(){
   frogRightLimit = 12;
   watchDog = 1; // we use this to see if there's been movement - it's only ever zero when the frog has just moved!
 
-  attachInterrupt(0,playerIncFrogger,CHANGE);
+  attachInterrupt(0,playerIncFrogger,RISING);
 
   initScreen();
   resetDock(0);
@@ -537,43 +542,44 @@ void playFrogger(){
     }
 
     // Handle input from 'jump' button (the other two buttons are captured in the interrupt routines)
-    if (analogRead(0) < 940 && clickLock == 0) {
+    /*if (analogRead(0) < 940 && clickLock == 0) {
       moveForward = 1;
       watchDog = 0;   // reset the watchdog so the game doesn't end!
       clickLock = 1;
       clickBase = millis();
-    }
+    }*/
 
     // Handle moving left
     if(moveLeft == 1 && millis() > clickBase + CLICKDELAY/2) {
       watchDog = 0;   // reset the watchdog so the game doesn't end!
       moveLeft = 0;
-      if (digitalRead(2) == HIGH) moveForward = 1; else {
+      //if (digitalRead(2) == HIGH) moveForward = 1; else {
         drawFrog(0,0);  // delete the frog
         // move the frog, checking it isn't jumping off the edge of the screen
         if ((frogRow == 7 && frogColumn > frogLeftLimit) || (frogRow < 7 && frogColumn > 0)) {
           frogColumn --;
         } else if (frogRow < 7) stopAnimate = 1;
         frogMode = 2; // pointing left
-      }
+      //}
     }
 
     // Handle moving right
     if(moveRight == 1 && millis() > clickBase + CLICKDELAY/2){
       watchDog = 0;   // reset the watchdog so the game doesn't end!
       moveRight = 0;
-      if (digitalRead(0) == HIGH) moveForward = 1; else {
+      //if (digitalRead(0) == HIGH) moveForward = 1; else {
         drawFrog(0,0); // delete the frog
         // move the frog, checking it isn't jumping off the edge of the screen
         if ((frogRow == 7 && frogColumn < frogRightLimit) || (frogRow < 7 && frogColumn < 14)) {
           frogColumn ++;
         } else if (frogRow < 7) stopAnimate = 1;
         frogMode = 3; // pointing right    
-      }
+      //}
     }
 
     // Handle 'move forward' button press
     if (moveForward == 1) {
+      watchDog = 0;
       moveForward = 0;
   
       score+= level;          // increment the score for every move

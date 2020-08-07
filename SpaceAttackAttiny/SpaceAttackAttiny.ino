@@ -42,6 +42,11 @@
 #define SSD1306_SDA   PORTB3  // SDA, Pin 3 on SSD1306 Board - for webbogles board
 #define SSD1306_SA    0x78  // Slave address
 
+
+#define PLAYER_WIDTH 16
+#define PLAYER_POS_MIN 0
+#define PLAYER_POS_MAX (127-PLAYER_WIDTH)
+
 // Function prototypes
 void resetAliens(void);
 void drawPlatform(void);
@@ -92,8 +97,7 @@ int deadOn2 = 0; // how many aliens are dead on row two (bottom row)
 
 boolean fire = 0;
 int topScoreB = 0;
-int player; //0 to 128-platformWidth  - this is the position of the player
-int platformWidth = 16; 
+int player; //this is the position of the player
 boolean stopAnimate = 0; // this is set to 1 when a collision is detected
 boolean mute = 0;
 boolean newHigh = 0;
@@ -102,11 +106,7 @@ int top = 0;
 
 // Interrupt handlers
 ISR(PCINT0_vect){ // PB0 pin button interrupt           
-   if (digitalRead(2)==1) fire = 1;
-}
-
-void playerIncSpaceAttack(){ // PB2 pin button interrupt
-  if (digitalRead(0)==1) fire = 1;
+   if (digitalRead(0)==1) fire = 1;
 }
 
 // Arduino stuff - setup
@@ -128,7 +128,7 @@ void loop() {
   // symbols are also missing for the same reason (see my hacked version of font6x8.h - font6x8AJ.h for more detail)
   ssd1306_char_f6x8(0, 1, "S P A C E");
   ssd1306_char_f6x8(4, 2, "A T T A C K");
-  ssd1306_char_f6x8(0, 4, "andh jackson"); // see comments above !
+  ssd1306_char_f6x8(0, 4, "andy jackson"); // see comments above !
 
   ssd1306_setpos(85,1);
   ssd1306_send_data_start();
@@ -199,8 +199,8 @@ void loop() {
     sendBlock(0);
     sendBlock(0);
     ssd1306_send_data_stop();
-    ssd1306_char_f6x8(0, 6, "inspired bh");  // see comments above !
-    ssd1306_char_f6x8(0, 7, "/ebboggles.com");  // see comments above !
+    ssd1306_char_f6x8(0, 6, "inspired by");  // see comments above !
+    ssd1306_char_f6x8(0, 7, "webboggles.com");  // see comments above !
     delay(1500);
     ssd1306_init();
     ssd1306_fillscreen(0x00);
@@ -227,7 +227,7 @@ void loop() {
     if (newHigh) {
       ssd1306_fillscreen(0x00);
       ssd1306_char_f6x8(10, 1, "----------------");
-      ssd1306_char_f6x8(10, 3, " NEW HIGH SCORE ");
+      ssd1306_char_f6x8(10, 3, " NEW HIGH SCORE");
       ssd1306_char_f6x8(10, 7, "----------------");
       doNumber(50,5,top);
       for (int i = 700; i>200; i = i - 50){
@@ -364,9 +364,10 @@ void ssd1306_char_f6x8(uint8_t x, uint8_t y, const char ch[]){
   while(ch[j] != '\0')
   {
     c = ch[j] - 32;
-    if (c >0) c = c - 12;
-    if (c >15) c = c - 6;
-    if (c>40) c=c-9;
+    if (c>64) c = c - 32; //convert lower case to upper case
+    if (c >0) c = c - 12; //start with space
+    if (c >15) c = c - 6; //skip special char
+    
     if(x>126)
     {
       x=0;
@@ -421,7 +422,7 @@ void playSpaceAttack() {
 
   levelUp(1); // This also does various essential initialisations
   
-  attachInterrupt(0,playerIncSpaceAttack,CHANGE);
+ // attachInterrupt(0,playerIncSpaceAttack,CHANGE);
 
   while (stopAnimate == 0) {
     while(1) {
@@ -429,21 +430,12 @@ void playSpaceAttack() {
     firecounter++;
     mothercounter++;
     
-    // deal with inputs
-    if(analogRead(0) < 940) fire =1; // this reads the reset pin (pin 1) of the Attiny85 - to use it, see comments section above
-
-    if(digitalRead(2)==1) {
-      if (digitalRead(0)==1) fire = 1;
-      if(player < 127-platformWidth) {
-        player++;
-        } 
+    int ic = analogRead(1);
+    if (ic > 800 && ic < 855) {
+      if(player>PLAYER_POS_MIN) player--;
+    } else if (ic > 855 && ic < 970) {
+      if(player<PLAYER_POS_MAX) player++;
     }
-    if (digitalRead(0)==1){
-      if (digitalRead(2)==1) fire = 1;
-      if (player >1){
-        player--;
-        } 
-     }
 
     if ( (mothership == 0) && (random(0,1000) > 998) && (alienRow>0) ) {
       mothership = 1;
@@ -542,7 +534,7 @@ void playSpaceAttack() {
     // Fire !
     if ((fire == 1) && (playerFire[0] == 0)) { // fire has been pressed and we're not currently firing - initiate fire!!
       playerFire[0] = 1;
-      playerFire[1] = player+platformWidth/2; // xposition of new fire!
+      playerFire[1] = player+PLAYER_WIDTH/2; // xposition of new fire!
       playerFire[2] = 56;
     }
 
@@ -658,7 +650,7 @@ void playSpaceAttack() {
             ssd1306_send_byte(temp);  
             ssd1306_send_data_stop();                                                          
             alienFire[afIndex][0] = 0; // the fire's got to the end
-            if( ((alienFire[afIndex][1]) > player) && ( (alienFire[afIndex][1]) < player+platformWidth) ) { // you've been hit!!
+            if( ((alienFire[afIndex][1]) > player) && ( (alienFire[afIndex][1]) < player+PLAYER_WIDTH) ) { // you've been hit!!
               stopAnimate = 1;
               goto die;
               }
@@ -774,7 +766,7 @@ void levelUp(int number) {
 
   ssd1306_fillscreen(0x00);
   ssd1306_char_f6x8(16, 3, "--------------");
-  ssd1306_char_f6x8(16, 4, " L E V E L ");
+  ssd1306_char_f6x8(16, 4, " L E V E L");
   ssd1306_char_f6x8(16, 5, "--------------");
   doNumber(85,4,number);
   for (int i = 800; i>200; i = i - 200){
@@ -836,5 +828,3 @@ void resetAliens(void) {
     row[1][i]=1;
   }     
 }
-
-

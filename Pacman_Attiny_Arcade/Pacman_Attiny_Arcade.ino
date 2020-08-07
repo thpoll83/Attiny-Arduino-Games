@@ -345,7 +345,7 @@ static const byte gameScreen[] PROGMEM = {
 // Interrupt handlers
 ISR(PCINT0_vect){ // PB0 pin button interrupt           
   if (clickLock == 0) {
-    if (commandDir > 0) commandDir--; else commandDir = 3;
+    //if (commandDir > 0) commandDir--; else commandDir = 3;
     clickLock = 1;
     clickBase = millis();
   }
@@ -353,7 +353,16 @@ ISR(PCINT0_vect){ // PB0 pin button interrupt
 
 void playerIncPacman(){ // PB2 pin button interrupt
   if (clickLock == 0) {
-    if (commandDir < 3) commandDir++; else commandDir = 0;
+    int ic = analogRead(1);
+    if (ic > 800 && ic < 855) {
+      commandDir = DIR_LEFT;
+    } else if (ic > 855 && ic < 970) {
+      commandDir = DIR_RIGHT;
+    } else if (ic > 970 && ic < 1025) {
+      commandDir = DIR_UP;
+    } else if (ic > 630 && ic < 740) {
+      commandDir = DIR_DOWN;
+    }
     clickLock = 1;
     clickBase = millis();
   }      
@@ -623,9 +632,10 @@ void ssd1306_char_f6x8(uint8_t x, uint8_t y, const char ch[]){
   while(ch[j] != '\0')
   {
     c = ch[j] - 32;
-    if (c >0) c = c - 12;
-    if (c >15) c = c - 6;
-    if (c>40) c=c-9;
+    if (c>64) c = c - 32; //convert lower case to upper case
+    if (c >0) c = c - 12; //start with space
+    if (c >15) c = c - 6; //skip special char
+
     if(x>126)
     {
       x=0;
@@ -1013,7 +1023,7 @@ void playPacman(){
   releaseDelay = INITIAL_GHOST_DELAY;
   maxGhosts = INITIAL_GHOSTS;
 
-  attachInterrupt(0,playerIncPacman,CHANGE);
+  attachInterrupt(0,playerIncPacman,RISING);
 
   initLevel();
   initScreen();
@@ -1040,5 +1050,3 @@ void playPacman(){
     displayScreen();
   }   
 }
-
-
